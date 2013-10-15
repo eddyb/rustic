@@ -21,9 +21,6 @@ LD := $(GCC_PREFIX)ld
 LDFLAGS := -nostdlib -m $(MACHINE) -Tsrc/linker.ld
 LIBS := $(shell $(GCC_PREFIX)gcc -print-file-name=libgcc.a)
 
-AS := $(LLVM_ROOT)/bin/clang
-ASFLAGS := -O3 -target $(TARGET)
-
 BUILDDIR := build
 OBJDIR := $(BUILDDIR)/obj
 
@@ -31,9 +28,8 @@ IMAGESDIR := images
 
 SRCS := src/main.rs
 CSRCS := src/rusty.c
-ASMSRCS := src/start.S
 
-OBJS := $(patsubst %.rs,$(OBJDIR)/%.o,$(SRCS)) $(patsubst %.c,$(OBJDIR)/%.c.o,$(CSRCS)) $(patsubst %.S,$(OBJDIR)/%.S.o,$(ASMSRCS))
+OBJS := $(patsubst %.rs,$(OBJDIR)/%.o,$(SRCS)) $(patsubst %.c,$(OBJDIR)/%.c.o,$(CSRCS))
 
 KERNEL := $(BUILDDIR)/kernel
 ISO := $(BUILDDIR)/rustic.iso
@@ -65,11 +61,6 @@ $(OBJDIR)/%.c.o: %.c
 	@-mkdir -p `dirname $@`
 	@echo "[CC  ]" $@
 	@$(CC) $(CFLAGS) -o $@ -c $^
-
-$(OBJDIR)/%.S.o: %.S
-	@-mkdir -p `dirname $@`
-	@echo "[AS  ]" $@
-	@$(AS) $(ASFLAGS) -o $@ -c $^
 
 clean:
 	-rm -f $(KERNEL)
