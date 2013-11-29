@@ -95,7 +95,6 @@ pub fn register(index: int, handler: extern "Rust" fn(n: uint)) {
     }
 }
 
-#[fixed_stack_segment]
 pub fn init() {
     unsafe {
         systemidt.table = core::heap::malloc(2048) as *mut idttable;
@@ -118,7 +117,6 @@ pub fn init() {
 }
 
 #[no_mangle]
-#[fixed_stack_segment]
 pub extern "C" fn isr_rustentry(which: uint) {
     // Entry point for IRQ - find if we have a handler configured or not.
     let x: handler = unsafe { (*systemidt.handlers)[which] };

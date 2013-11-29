@@ -67,7 +67,6 @@ static mut systemgdt: table = table {
     reg: 0 as *mut gdtreg,
 };
 
-#[fixed_stack_segment]
 pub fn init() {
     unsafe {
         systemgdt.table = core::heap::malloc(128) as *mut gdttable;

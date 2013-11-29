@@ -32,7 +32,6 @@ pub static RemapBase: int = 0x20;
 
 static mut irqhandlers: *mut handlers = 0 as *mut handlers;
 
-#[fixed_stack_segment]
 pub fn init() {
     io::outport(0x20, 0x11u8);
     io::outport(0xA0, 0x11u8);
