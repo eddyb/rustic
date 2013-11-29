@@ -124,19 +124,7 @@ _start:
     hlt
     jmp .
 
-.section .data
-isr_rustentry:
-    .long 0x0
-
 .section .text
-.global set_isr_handler
-.type set_isr_handler, @function
-set_isr_handler:
-    mov 4(%esp), %eax
-    mov $isr_rustentry, %ecx
-    mov %eax, (%ecx)
-    ret
-
 .global lowlevel_isr_entry
 .type lowlevel_isr_entry, @function
 lowlevel_isr_entry:
@@ -158,8 +146,7 @@ lowlevel_isr_entry:
     # Push interrupt number as the parameter.
     mov 48(%esp), %eax
     push %eax
-    mov $isr_rustentry, %eax
-    call *(%eax)
+    call isr_rustentry
     add $4, %esp
 
     pop %gs
@@ -175,21 +162,23 @@ lowlevel_isr_entry:
     iret
 
 .macro INTERRUPT_HANDLER num
-	.global isr_\num
-	isr_\num:
-		cli
-		pushl $0
-		pushl $\num
-		jmp lowlevel_isr_entry
+    .global isr_\num
+    .type isr_\num, @function
+    isr_\num:
+        cli
+        pushl $0
+        pushl $\num
+        jmp lowlevel_isr_entry
 .endm
 
 .macro INTERRUPT_HANDLER_ERRORCODE num
-	.global isr_\num
-	isr_\num:
-		cli
-		nop; nop
-		pushl $\num
-		jmp lowlevel_isr_entry
+    .global isr_\num
+    .type isr_\num, @function
+    isr_\num:
+        cli
+        nop; nop
+        pushl $\num
+        jmp lowlevel_isr_entry
 .endm
 
 .align 1024

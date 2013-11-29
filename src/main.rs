@@ -66,7 +66,6 @@ pub fn kmain(_: int, _: **u8) -> int {
     serial::write("Rustic startup complete.\n");
 
     // Loop forever, IRQ handling will do the rest!
-    cpu::setirqs(true);
     loop {
         cpu::waitforinterrupt();
     }
