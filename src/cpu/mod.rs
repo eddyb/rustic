@@ -22,11 +22,6 @@ pub mod idt;
 // External variable in assembly code (not actually a function)
 extern { fn tls_emul_segment(); }
 
-fn buserror(_: uint) {
-    serial::write("BUS ERROR");
-    loop {}
-}
-
 pub fn init() {
     // Configure and load GDT
     gdt::init();
@@ -43,10 +38,13 @@ pub fn init() {
     idt::load();
 
     // Load #PF handler now.
-    registertrap(14, buserror);
+    registertrap(14, |_: uint| {
+        serial::write("BUS ERROR");
+        loop {}
+    });
 }
 
-pub fn registertrap(trap: int, f: extern "Rust" fn(n: uint)) {
+pub fn registertrap(trap: int, f: 'static|uint|) {
     idt::register(trap, f);
 }
 

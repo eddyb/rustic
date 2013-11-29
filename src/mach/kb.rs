@@ -43,7 +43,31 @@ pub fn init() {
     io::outport(0x60, 1u8);
     */
 
-    mach::registerirq(1, irq);
+    mach::registerirq(1, || {
+        // Check status, make sure a key is actually pending.
+        if io::inport::<u8>(0x64) & 1 == 1 {
+
+            // Get scancode.
+            let scancode: u8 = io::inport(0x60);
+
+            // Top bit set means 'key up'
+            if scancode & 0x80 != 0 {
+                let scancode = scancode & !0x80;
+                match scancode {
+                    0x2A | 0x36 => unsafe { shifted = false },
+                    0x3A => leds(0b100), // Caps lock
+                    0x45 => leds(0b010), // Number lock
+                    0x46 => leds(0b001), // Scroll lock
+                    _ => gotkey(scancode)
+                }
+            } else {
+                match scancode {
+                    0x2A | 0x36 => unsafe { shifted = true },
+                    _ => {}
+                }
+            }
+        }
+    });
 }
 
 fn kbcmdwait() {
@@ -94,32 +118,3 @@ fn gotkey(scancode: u8) {
         }
     }
 }
-
-fn irq() {
-    // Check status, make sure a key is actually pending.
-    let status: u8 = io::inport(0x64);
-    if status & 0x1 == 0 {
-        return;
-    }
-
-    // Get scancode.
-    let scancode: u8 = io::inport(0x60);
-
-    // Top bit set means 'key up'
-    if scancode & 0x80 != 0 {
-        let code = scancode & !0x80u8;
-        match code {
-            0x2A | 0x36 => unsafe { shifted = false },
-            0x3A => leds(0b100), // Caps lock
-            0x45 => leds(0b10), // Number lock
-            0x46 => leds(0b1), // Scroll lock
-            _ => gotkey(code)
-        }
-    } else {
-        match scancode {
-            0x2A | 0x36 => unsafe { shifted = true },
-            _ => {}
-        }
-    }
-}
-

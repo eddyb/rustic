@@ -45,7 +45,7 @@ struct idtentry {
 }
 
 struct handler {
-    f: extern "Rust" fn(n: uint),
+    f: 'static|uint|,
     set: bool,
 }
 
@@ -88,7 +88,7 @@ fn entry(index: int, handler: uint, sel: u16, flags: u8) {
     }
 }
 
-pub fn register(index: int, handler: extern "Rust" fn(n: uint)) {
+pub fn register(index: int, handler: 'static|uint|) {
     unsafe {
         (*systemidt.handlers)[index].f = handler;
         (*systemidt.handlers)[index].set = true;
@@ -117,10 +117,9 @@ pub fn init() {
 #[no_mangle]
 pub extern "C" fn isr_rustentry(which: uint) {
     // Entry point for IRQ - find if we have a handler configured or not.
-    let x: handler = unsafe { (*systemidt.handlers)[which] };
+    let x: &handler = unsafe { &(*systemidt.handlers)[which] };
     if x.set == true {
-        let f = x.f;
-        f(which);
+        (x.f)(which);
     }
 }
 

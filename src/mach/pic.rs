@@ -23,7 +23,7 @@ use cpu;
 type handlers = [handler, ..16];
 
 struct handler {
-    f: extern "Rust" fn(),
+    f: 'static||,
     set: bool,
     level: bool,
 }
@@ -58,7 +58,7 @@ pub fn init() {
     }
 }
 
-pub fn register(irq: int, f: extern "Rust" fn()) {
+pub fn register(irq: int, f: 'static||) {
     // TODO: expose level-trigger Boolean
     unsafe {
         (*irqhandlers)[irq].f = f;
@@ -94,7 +94,7 @@ fn eoi(n: uint) {
     io::outport(0x20, 0x20u8);
 }
 
-pub fn irq(n: uint) {
+fn irq(n: uint) {
     let irqnum = n - RemapBase as uint;
 
     // Get status registers for master/slave
@@ -124,7 +124,7 @@ pub fn irq(n: uint) {
     }
 
     // Get the handler we need.
-    let h: handler = unsafe { (*irqhandlers)[irqnum] };
+    let h: &handler = unsafe { &(*irqhandlers)[irqnum] };
     if h.set == true {
         // Edge triggered IRQs need to be ACKed before the handler.
         if h.level == false {
@@ -132,8 +132,7 @@ pub fn irq(n: uint) {
         }
 
         // Handle!
-        let f = h.f;
-        f();
+        (h.f)();
 
         // ACK level triggered IRQ.
         if h.level == true {
