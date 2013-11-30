@@ -17,16 +17,16 @@
 use core;
 use core::mem::size_of;
 
-type gdttable = [gdtentry, ..16];
+type GdtTable = [Entry, ..16];
 
 #[packed]
-struct gdtreg {
+struct Register {
     limit: u16,
-    addr: *gdttable,
+    addr: *GdtTable,
 }
 
 #[packed]
-struct gdtentry {
+struct Entry {
     limit_low: u16,
     base_low: u16,
     base_mid: u8,
@@ -35,23 +35,23 @@ struct gdtentry {
     base_high: u8,
 }
 
-struct table {
-    reg: *mut gdtreg,
-    table: *mut gdttable
+struct Table {
+    reg: *mut Register,
+    table: *mut GdtTable
 }
 
-impl gdtreg {
-    pub fn new(gdt: *gdttable) -> gdtreg {
-        gdtreg {
+impl Register {
+    pub fn new(gdt: *GdtTable) -> Register {
+        Register {
             addr: gdt,
-            limit: (size_of::<gdttable>() + 1) as u16,
+            limit: (size_of::<GdtTable>() + 1) as u16,
         }
     }
 }
 
-impl gdtentry {
-    pub fn new(base: uint, limit: uint, access: u8, gran: u8) -> gdtentry {
-        gdtentry {
+impl Entry {
+    pub fn new(base: uint, limit: uint, access: u8, gran: u8) -> Entry {
+        Entry {
             limit_low: (limit & 0xFFFF) as u16,
             base_low: (base & 0xFFFF) as u16,
             base_mid: ((base >> 16) & 0xFF) as u8,
@@ -62,36 +62,36 @@ impl gdtentry {
     }
 }
 
-static mut systemgdt: table = table {
-    table: 0 as *mut gdttable,
-    reg: 0 as *mut gdtreg,
+static mut system_gdt: Table = Table {
+    table: 0 as *mut GdtTable,
+    reg: 0 as *mut Register,
 };
 
 pub fn init() {
     unsafe {
-        systemgdt.table = core::heap::malloc(128) as *mut gdttable;
-        systemgdt.reg = core::heap::malloc(6) as *mut gdtreg;
-        *systemgdt.reg = gdtreg::new(systemgdt.table as *gdttable);
+        system_gdt.table = core::heap::malloc(128) as *mut GdtTable;
+        system_gdt.reg = core::heap::malloc(6) as *mut Register;
+        *system_gdt.reg = Register::new(system_gdt.table as *GdtTable);
     }
 }
 
-pub fn load(codeseg: u16, dataseg: u16, tlsemulseg: u16) {
-    unsafe { asm!(" \
-        lgdt ($0); \
-        jmp $1, $$.g; \
-        .g: \
-        mov $2, %ax; \
-        mov %ax, %ds; \
-        mov %ax, %es; \
-        mov %ax, %fs; \
-        mov %ax, %ss; \
-        mov $3, %ax; \
-        mov %ax, %gs;" :: "r" (systemgdt.reg), "Ir" (codeseg), "Ir" (dataseg), "Ir" (tlsemulseg) : "ax"); }
+pub fn load(code_seg: u16, data_seg: u16, tls_emul_seg: u16) {
+    unsafe { asm!("
+        lgdt ($0);
+        jmp $1, $$.g;
+        .g:
+        mov $2, %ax;
+        mov %ax, %ds;
+        mov %ax, %es;
+        mov %ax, %fs;
+        mov %ax, %ss;
+        mov $3, %ax;
+        mov %ax, %gs;" :: "r" (system_gdt.reg), "Ir" (code_seg), "Ir" (data_seg), "Ir" (tls_emul_seg) : "ax"); }
 }
 
 pub fn entry(index: int, base: uint, limit: uint, access: u8, gran: u8) {
     unsafe {
-        (*systemgdt.table)[index] = gdtentry::new(base, limit, access, gran);
+        (*system_gdt.table)[index] = Entry::new(base, limit, access, gran);
     }
 }
 

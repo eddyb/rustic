@@ -20,23 +20,23 @@ use serial;
 use io;
 use cpu;
 
-type handlers = [handler, ..16];
+type handlers = [Handler, ..16];
 
-struct handler {
+struct Handler {
     f: 'static||,
     set: bool,
     level: bool,
 }
 
-pub static RemapBase: int = 0x20;
+static REMAP_BASE: u8 = 0x20;
 
-static mut irqhandlers: *mut handlers = 0 as *mut handlers;
+static mut irq_handlers: *mut handlers = 0 as *mut handlers;
 
 pub fn init() {
     io::outport(0x20, 0x11u8);
     io::outport(0xA0, 0x11u8);
-    io::outport(0x21, RemapBase as u8); // Remap to start at the remap base.
-    io::outport(0xA1, (RemapBase + 8) as u8);
+    io::outport(0x21, REMAP_BASE); // Remap to start at the remap base.
+    io::outport(0xA1, REMAP_BASE + 8u8);
     io::outport(0x21, 0x04u8);
     io::outport(0xA1, 0x02u8);
     io::outport(0x21, 0x01u8);
@@ -47,27 +47,27 @@ pub fn init() {
     io::outport(0xA1, 0xFFu8);
 
     // Allocate space for our handler list.
-    unsafe { irqhandlers = core::heap::malloc(192) as *mut handlers; }
+    unsafe { irq_handlers = core::heap::malloc(192) as *mut handlers; }
 
     // Set handlers, set IRQ entries on the CPU.
     let mut i = 0;
     while i < 16 {
-        unsafe { (*irqhandlers)[i].set = false; }
-        cpu::registertrap(i + RemapBase, irq);
+        unsafe { (*irq_handlers)[i].set = false; }
+        cpu::register_trap(i + REMAP_BASE as uint, irq);
         i += 1;
     }
 }
 
-pub fn register(irq: int, f: 'static||) {
+pub fn register(n: uint, f: 'static||) {
     // TODO: expose level-trigger Boolean
     unsafe {
-        (*irqhandlers)[irq].f = f;
-        (*irqhandlers)[irq].set = true;
-        (*irqhandlers)[irq].level = true;
+        (*irq_handlers)[n].f = f;
+        (*irq_handlers)[n].set = true;
+        (*irq_handlers)[n].level = true;
     }
 }
 
-pub fn enable(line: int) {
+pub fn enable(line: uint) {
     if line > 7 {
         let actual = line - 8;
         let curr: u8 = io::inport(0xA1);
@@ -78,7 +78,7 @@ pub fn enable(line: int) {
     }
 }
 
-pub fn disable(line: int) {
+pub fn disable(line: uint) {
     if line > 7 {
         let actual = line - 8;
         let curr: u8 = io::inport(0xA1);
@@ -95,40 +95,40 @@ fn eoi(n: uint) {
 }
 
 fn irq(n: uint) {
-    let irqnum = n - RemapBase as uint;
+    let n = n - REMAP_BASE as uint;
 
     // Get status registers for master/slave
     io::outport(0x20, 0x0Bu8);
     io::outport(0xA0, 0x0Bu8);
-    let slaveisr: u8 = io::inport(0xA0);
-    let masterisr: u8 = io::inport(0x20);
-    let isr: u16 = (slaveisr as u16 << 8) | masterisr as u16;
+    let slave_isr: u8 = io::inport(0xA0);
+    let master_isr: u8 = io::inport(0x20);
+    let status = (slave_isr as u16 << 8) | master_isr as u16;
 
     // Spurious IRQ?
-    if irqnum == 7 {
-        if (isr & (1 << 7)) == 0 {
+    if n == 7 {
+        if (status & (1 << 7)) == 0 {
             serial::write("spurious IRQ 7\n");
             return;
         }
-    } else if irqnum == 15 {
-        if (isr & (1 << 15)) == 0 {
+    } else if n == 15 {
+        if (status & (1 << 15)) == 0 {
             serial::write("spurious IRQ 15\n");
             eoi(7);
             return;
         }
     }
 
-    if (isr & (1 << irqnum)) == 0 {
+    if (status & (1 << n)) == 0 {
         serial::write("IRQ stub called with no interrupt status");
         return;
     }
 
     // Get the handler we need.
-    let h: &handler = unsafe { &(*irqhandlers)[irqnum] };
+    let h = unsafe { &(*irq_handlers)[n] };
     if h.set == true {
         // Edge triggered IRQs need to be ACKed before the handler.
         if h.level == false {
-            eoi(irqnum);
+            eoi(n);
         }
 
         // Handle!
@@ -136,12 +136,12 @@ fn irq(n: uint) {
 
         // ACK level triggered IRQ.
         if h.level == true {
-            eoi(irqnum);
+            eoi(n);
         }
     } else {
         // Unhandled IRQ, just send the EOI and hope all's well.
         serial::write("Unhandled IRQ");
-        eoi(irqnum);
+        eoi(n);
     }
 }
 

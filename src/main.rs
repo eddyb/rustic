@@ -67,6 +67,6 @@ pub fn kmain(_: int, _: **u8) -> int {
 
     // Loop forever, IRQ handling will do the rest!
     loop {
-        cpu::waitforinterrupt();
+        cpu::wait_for_interrupt();
     }
 }

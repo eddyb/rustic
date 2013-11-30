@@ -17,26 +17,25 @@
 use core;
 use core::mem::size_of;
 
-type idttable = [idtentry, ..256];
+type IdtTable = [Entry, ..256];
 
 // One handler per interrupt line.
-type handlers = [handler, ..256];
+type IdtHandlers = [Handler, ..256];
 
 // Base for all our IRQ handling.
-#[allow(ctypes)]
 extern "C" { fn isrs_base(); }
 
 // Size of the interrupt stub, so we can create our initial IDT easily.
 static ISR_STUB_LENGTH: uint = 10;
 
 #[packed]
-struct idtreg {
+struct Register {
     limit: u16,
-    addr: *idttable,
+    addr: *IdtTable,
 }
 
 #[packed]
-struct idtentry {
+struct Entry {
     handler_low: u16,
     selector: u16,
     always0: u8,
@@ -44,29 +43,29 @@ struct idtentry {
     handler_high: u16,
 }
 
-struct handler {
+struct Handler {
     f: 'static|uint|,
     set: bool,
 }
 
-struct table {
-    reg: *mut idtreg,
-    table: *mut idttable,
-    handlers: *mut handlers,
+struct Table {
+    reg: *mut Register,
+    table: *mut IdtTable,
+    handlers: *mut IdtHandlers,
 }
 
-impl idtreg {
-    pub fn new(idt: *idttable) -> idtreg {
-        idtreg {
+impl Register {
+    pub fn new(idt: *IdtTable) -> Register {
+        Register {
             addr: idt,
-            limit: (size_of::<idttable>() + 1) as u16,
+            limit: (size_of::<IdtTable>() + 1) as u16,
         }
     }
 }
 
-impl idtentry {
-    pub fn new(handler: uint, sel: u16, flags: u8) -> idtentry {
-        idtentry {
+impl Entry {
+    pub fn new(handler: uint, sel: u16, flags: u8) -> Entry {
+        Entry {
             handler_low: (handler & 0xFFFF) as u16,
             selector: sel,
             always0: 0,
@@ -76,31 +75,31 @@ impl idtentry {
     }
 }
 
-static mut systemidt: table = table {
-    table: 0 as *mut idttable,
-    reg: 0 as *mut idtreg,
-    handlers: 0 as *mut handlers,
+static mut system_idt: Table = Table {
+    table: 0 as *mut IdtTable,
+    reg: 0 as *mut Register,
+    handlers: 0 as *mut IdtHandlers,
 };
 
-fn entry(index: int, handler: uint, sel: u16, flags: u8) {
+fn entry(index: uint, handler: uint, sel: u16, flags: u8) {
     unsafe {
-        (*systemidt.table)[index] = idtentry::new(handler, sel, flags)
+        (*system_idt.table)[index] = Entry::new(handler, sel, flags)
     }
 }
 
-pub fn register(index: int, handler: 'static|uint|) {
+pub fn register(index: uint, handler: 'static|uint|) {
     unsafe {
-        (*systemidt.handlers)[index].f = handler;
-        (*systemidt.handlers)[index].set = true;
+        (*system_idt.handlers)[index].f = handler;
+        (*system_idt.handlers)[index].set = true;
     }
 }
 
 pub fn init() {
     unsafe {
-        systemidt.table = core::heap::malloc(2048) as *mut idttable;
-        systemidt.reg = core::heap::malloc(6) as *mut idtreg;
-        systemidt.handlers = core::heap::malloc(2048) as *mut handlers;
-        *systemidt.reg = idtreg::new(systemidt.table as *idttable);
+        system_idt.table = core::heap::malloc(2048) as *mut IdtTable;
+        system_idt.reg = core::heap::malloc(6) as *mut Register;
+        system_idt.handlers = core::heap::malloc(2048) as *mut IdtHandlers;
+        *system_idt.reg = Register::new(system_idt.table as *IdtTable);
     }
 
     // Load default IDT entries, that generally shouldn't ever be changed.
@@ -108,7 +107,7 @@ pub fn init() {
     let mut base = isrs_base as uint;
     while i < 256 {
         entry(i, base, 0x08u16, 0x8E);
-        unsafe { (*systemidt.handlers)[i].set = false; }
+        unsafe { (*system_idt.handlers)[i].set = false; }
         base += ISR_STUB_LENGTH;
         i += 1;
     }
@@ -117,13 +116,13 @@ pub fn init() {
 #[no_mangle]
 pub extern "C" fn isr_rustentry(which: uint) {
     // Entry point for IRQ - find if we have a handler configured or not.
-    let x: &handler = unsafe { &(*systemidt.handlers)[which] };
+    let x = unsafe { &(*system_idt.handlers)[which] };
     if x.set == true {
         (x.f)(which);
     }
 }
 
 pub fn load() {
-    unsafe { asm!("lidt ($0)" :: "r" (systemidt.reg)); }
+    unsafe { asm!("lidt ($0)" :: "r" (system_idt.reg)); }
 }
 

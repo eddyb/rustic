@@ -30,7 +30,7 @@ pub fn init() {
     kb::leds(1);
 }
 
-pub fn registerirq(irq: int, f: 'static||) {
+pub fn register_irq(irq: uint, f: 'static||) {
     pic::register(irq, f);
     pic::enable(irq);
 }

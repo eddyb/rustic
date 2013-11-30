@@ -14,32 +14,21 @@
  * OR IN CONNECTION WITH THE USE OR PERFORMANCE OF THIS SOFTWARE.
  */
 
-trait ioval {
-    fn zero() -> Self;
-}
+trait PortVal {}
+impl PortVal for u8 {}
+impl PortVal for u16 {}
+impl PortVal for u32 {}
 
-impl ioval for u8 {
-    fn zero() -> u8 { 0 }
-}
-
-impl ioval for u16 {
-    fn zero() -> u16 { 0 }
-}
-
-impl ioval for u32 {
-    fn zero() -> u32 { 0 }
-}
-
-pub fn outport<T>(port: u16, val: T) {
+pub fn outport<T: PortVal>(port: u16, val: T) {
     unsafe {
         asm!("out $0, $1" :: "{ax}" (val), "N{dx}" (port));
     }
 }
 
-pub fn inport<T: ioval>(port: u16) -> T {
+pub fn inport<T: PortVal>(port: u16) -> T {
+    let val: T;
     unsafe {
-        let mut val: T;
         asm!("in $1, $0" : "={ax}" (val) : "N{dx}" (port));
-        val
     }
+    val
 }

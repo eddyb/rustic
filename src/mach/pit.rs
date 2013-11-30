@@ -18,34 +18,34 @@ use io;
 use vga;
 use mach;
 
-static mut TimerHertz: int = 10;
-static mut Ticks: int = 0;
+static mut timer_hertz: uint = 10;
+static mut ticks: uint = 0;
 
-static BaseFrequency: int = 1193180;
+static BASE_FREQ: uint = 1193180;
 
-pub fn init(hz: int) {
-    unsafe { TimerHertz = hz; }
+pub fn init(hz: uint) {
+    unsafe { timer_hertz = hz; }
 
     // Program periodic mode, with our desired divisor for the given
     // frequency (in hertz).
-    let div = unsafe { BaseFrequency / TimerHertz };
+    let div = unsafe { BASE_FREQ / timer_hertz };
     io::outport(0x43, 0x36u8);
     io::outport(0x40, (div & 0xFF) as u8);
     io::outport(0x40, ((div >> 8) & 0xFF) as u8);
 
     // Register our IRQ.
-    mach::registerirq(0, || {
-        let ticks = unsafe { Ticks += 1000 / TimerHertz; Ticks };
+    mach::register_irq(0, || {
+        let now = unsafe { ticks += 1000 / timer_hertz; ticks };
 
-        if ticks % 1000 == 0 {
-            if ticks == 4000 {
+        if now % 1000 == 0 {
+            if now == 4000 {
                 vga::write("\\", vga::COLS - 1, vga::ROWS - 1, vga::White, vga::Black);
-                unsafe { Ticks = 0; }
-            } else if(ticks == 3000) {
+                unsafe { ticks = 0; }
+            } else if(now == 3000) {
                 vga::write("-", vga::COLS - 1, vga::ROWS - 1, vga::White, vga::Black);
-            } else if(ticks == 2000) {
+            } else if(now == 2000) {
                 vga::write("/", vga::COLS - 1, vga::ROWS - 1, vga::White, vga::Black);
-            } else if(ticks == 1000) {
+            } else if(now == 1000) {
                 vga::write("|", vga::COLS - 1, vga::ROWS - 1, vga::White, vga::Black);
             }
         }

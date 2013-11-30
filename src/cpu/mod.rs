@@ -17,6 +17,7 @@
 use serial;
 
 mod gdt;
+// NOTE public so extern "C" fn isr_rustentry is external.
 pub mod idt;
 
 // External variable in assembly code (not actually a function)
@@ -38,17 +39,17 @@ pub fn init() {
     idt::load();
 
     // Load #PF handler now.
-    registertrap(14, |_: uint| {
+    register_trap(14, |_: uint| {
         serial::write("BUS ERROR");
         loop {}
     });
 }
 
-pub fn registertrap(trap: int, f: 'static|uint|) {
+pub fn register_trap(trap: uint, f: 'static|uint|) {
     idt::register(trap, f);
 }
 
-pub fn setirqs(state: bool) {
+pub fn set_interrupts(state: bool) {
     if(state == true) {
         unsafe { asm!("sti") }
     } else {
@@ -56,7 +57,7 @@ pub fn setirqs(state: bool) {
     }
 }
 
-pub fn waitforinterrupt() {
-    setirqs(true);
+pub fn wait_for_interrupt() {
+    set_interrupts(true);
     unsafe { asm!("hlt") }
 }

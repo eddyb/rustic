@@ -25,25 +25,25 @@ static mut y: uint = 1;
 
 static mut shifted: bool = false;
 
-static mut ledstate: u8 = 0;
+static mut led_state: u8 = 0;
 
 // Scan code set #1
-static ScanCodeMapping: &'static str = "\
+static scan_code_map: &'static str = "\
 \x00\x1B1234567890-=\x08\tqwertyuiop[]\n?asdfghjkl;'`?\\zxcvbnm,./?*? ?????????????789-456+1230.?????";
-static ScanCodeMappingShifted: &'static str = "\
+static scan_code_map_shifted: &'static str = "\
 \x00\x1B!@#$%^&*()_+\x08\tQWERTYUIOP{}\n?ASDFGHJKL:\"~?|ZXCVBNM<>??*? ?????????????789-456+1230.?????";
 
 
 pub fn init() {
     // Put the keyboard into scan code set 1, ready for our mapping.
     /*
-    kbcmdwait();
+    kb_cmd_wait();
     io::outport(0x60, 0xF0u8);
-    kbcmdwait();
+    kb_cmd_wait();
     io::outport(0x60, 1u8);
     */
 
-    mach::registerirq(1, || {
+    mach::register_irq(1, || {
         // Check status, make sure a key is actually pending.
         if io::inport::<u8>(0x64) & 1 == 1 {
 
@@ -58,7 +58,7 @@ pub fn init() {
                     0x3A => leds(0b100), // Caps lock
                     0x45 => leds(0b010), // Number lock
                     0x46 => leds(0b001), // Scroll lock
-                    _ => gotkey(scancode)
+                    _ => handle_key(scancode)
                 }
             } else {
                 match scancode {
@@ -70,14 +70,14 @@ pub fn init() {
     });
 }
 
-fn kbcmdwait() {
+fn kb_cmd_wait() {
     loop {
         let status: u8 = io::inport(0x64);
         if status & 0x2 == 0 { break; }
     }
 }
 
-fn kbdatawait() {
+fn kb_data_wait() {
     loop {
         let status: u8 = io::inport(0x64);
         if status & 0x1 != 0 { break; }
@@ -85,23 +85,23 @@ fn kbdatawait() {
 }
 
 pub fn leds(state: u8) {
-    unsafe { ledstate ^= state; }
+    unsafe { led_state ^= state; }
 
-    kbcmdwait();
+    kb_cmd_wait();
     io::outport(0x60, 0xEDu8);
-    kbcmdwait();
-    unsafe { io::outport(0x60, ledstate); }
+    kb_data_wait();
+    unsafe { io::outport(0x60, led_state); }
 }
 
-fn gotkey(scancode: u8) {
+fn handle_key(scancode: u8) {
     // Sanity.
     if scancode > 0x58u8 { return; }
 
     let c: u8 = unsafe {
         if shifted {
-            ScanCodeMappingShifted[scancode] as u8
+            scan_code_map_shifted[scancode] as u8
         } else {
-            ScanCodeMapping[scancode] as u8
+            scan_code_map[scancode] as u8
         }
     };
     let s: &str = unsafe { core::mem::transmute((&c, 1)) };

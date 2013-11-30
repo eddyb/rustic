@@ -40,7 +40,7 @@ pub enum Colour {
 pub static COLS: uint = 80;
 pub static ROWS: uint = 25;
 
-static VGABASE: uint = 0xB8000;
+static VGA_BASE: uint = 0xB8000;
 
 pub fn fill(with: char, colour: Colour) {
     let field: u16 = with as u16 | (colour as u16 << 12);
@@ -49,7 +49,7 @@ pub fn fill(with: char, colour: Colour) {
     let mut offset = 0;
     while offset < max {
         unsafe {
-            *((VGABASE + offset) as *mut u16) = field;
+            *((VGA_BASE + offset) as *mut u16) = field;
         }
         offset += 2;
     }
@@ -68,11 +68,11 @@ fn cursor(x: uint, y: uint) {
     io::outport(0x3D5, (((position >> 8) & 0xFF) as u8));
 
     unsafe {
-        let curr: u16 = *((VGABASE + (position * 2)) as *u16);
+        let curr: u16 = *((VGA_BASE + (position * 2)) as *u16);
         let attr: u8 = (curr >> 8) as u8;
         if attr & 0xFu8 == 0 {
             // No foreground colour attribute. Fix.
-            *((VGABASE + (position * 2)) as *mut u16) = curr | (LightGray as u16 << 8);
+            *((VGA_BASE + (position * 2)) as *mut u16) = curr | (LightGray as u16 << 8);
         }
     }
 }
@@ -103,7 +103,7 @@ pub fn write(s: &str, x: uint, y: uint, fg: Colour, bg: Colour) -> uint {
             },
             _ => {
                 unsafe {
-                    let p: *mut u16 = (VGABASE + (offset * 2)) as *mut u16;
+                    let p: *mut u16 = (VGA_BASE + (offset * 2)) as *mut u16;
                     *p = (s[index] as u16) | (attr as u16 << 8);
                 }
                 offset += 1;

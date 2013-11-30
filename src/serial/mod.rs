@@ -33,12 +33,12 @@ enum Registers {
     MCtrl = 4,
     LStat = 5,
     MStat = 6,
-    Scratch = 7,
+    Scratch = 7
 }
 
 static SERIAL_BASE: u16 = 0x3F8;
 
-pub fn config(baud: int, dbits: int, parity: Parity, sbits: int) {
+pub fn config(baud: uint, dbits: uint, parity: Parity, sbits: uint) {
     // Disable IRQs.
     io::outport(SERIAL_BASE + Inten as u16, 0 as u8);
 
@@ -78,7 +78,7 @@ pub fn config(baud: int, dbits: int, parity: Parity, sbits: int) {
     io::outport(SERIAL_BASE + MCtrl as u16, 0x0B as u8);
 }
 
-fn writechar(c: u8) {
+fn write_char(c: u8) {
     // Wait until we are permitted to write.
     loop {
         let status: u8 = io::inport(SERIAL_BASE + LStat as u16);
@@ -98,7 +98,7 @@ pub fn write(s: &str) {
 
     let mut index = 0;
     while index < buflen {
-        writechar(s[index]);
+        write_char(s[index]);
 
         index += 1;
     }
