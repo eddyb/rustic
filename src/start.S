@@ -43,7 +43,7 @@ initial_gdt:
     .long 0x0
     .long 0x0
 
-    # Code.
+    # Kernel Code.
     .word 0xFFFF
     .word 0x0
     .byte 0x00
@@ -51,11 +51,27 @@ initial_gdt:
     .byte 0xCF
     .byte 0x00
 
-    # Data.
+    # Kernel Data.
     .word 0xFFFF
     .word 0x0
     .byte 0x00
     .byte 0x92
+    .byte 0xCF
+    .byte 0x00
+
+    # User Code.
+    .word 0xFFFF
+    .word 0x0
+    .byte 0x00
+    .byte 0xF8
+    .byte 0xCF
+    .byte 0x00
+
+    # User Data.
+    .word 0xFFFF
+    .word 0x0
+    .byte 0x00
+    .byte 0xF2
     .byte 0xCF
     .byte 0x00
 
@@ -70,7 +86,7 @@ initial_gdt_end:
 
 .align 4
 gdtr:
-    .word 0x21
+    .word 0x31
     .long 0x0
 
 .section .init
@@ -86,9 +102,9 @@ _start:
     movl %edi, 2(%esi)
 
     mov $tls_emul_segment, %edx
-    movw %dx, 26(%edi)
+    movw %dx, 0x2a(%edi)
     shr $16, %edx
-    movb %dl, 28(%edi)
+    movb %dl, 0x2c(%edi)
 
     // Load GDT
     lgdt (%esi)
@@ -108,7 +124,7 @@ _start:
     // This is required as Rust's main() at least checks to see
     // if the stack needs to be expanded in its prologue. If it
     // decides it does, it calls __morestack.
-    mov $0x18, %ax
+    mov $0x28, %ax
     mov %ax, %gs
 
     // Set up stack.
@@ -140,7 +156,7 @@ lowlevel_isr_entry:
     mov %ax, %es
     mov %ax, %fs
 
-    mov $0x18, %ax
+    mov $0x28, %ax
     mov %ax, %gs
 
     # Push interrupt number as the parameter.
